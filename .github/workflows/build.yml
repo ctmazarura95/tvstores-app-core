@@ -3,10 +3,14 @@ name: Build Tvstores Engine
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   build:
+    name: Factory Build (PHP 8.3)
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -15,20 +19,30 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: gd, bcmath, intl, soap, xsl, zip
+          # Required extensions for Magento 2.4.8
+          extensions: gd, bcmath, intl, soap, xsl, zip, sockets, pdo_mysql
           tools: composer:v2
 
-      # THIS IS THE MISSING LINK:
-      - name: Create auth.json
+      - name: Authenticate with Magento
+        # This uses the secrets you saved in GitHub Settings
         run: |
-          echo '{
-            "http-basic": {
-              "repo.magento.com": {
-                "username": "${{ secrets.MAGENTO_PUBLIC_KEY }}",
-                "password": "${{ secrets.MAGENTO_PRIVATE_KEY }}"
-              }
-            }
-          }' > auth.json
+          composer config --global http-basic.repo.magento.com ${{ secrets.MAGENTO_PUBLIC_KEY }} ${{ secrets.MAGENTO_PRIVATE_KEY }}
+
+      - name: Get Composer Cache Directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
 
       - name: Install Magento Dependencies
-        run: composer install --no-dev --optimize-autoloader
+        # --no-dev: Excludes testing tools to keep the build "Lean"
+        # --optimize-autoloader: Speeds up PHP performance
+        run: composer install --no-dev --optimize-autoloader --no-interaction
+
+      - name: Verify Magento Installation
+        run: php bin/magento --version
