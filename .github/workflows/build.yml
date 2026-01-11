@@ -1,0 +1,25 @@
+name: Build Tvstores Engine
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: gd, bcmath, intl, soap, xsl, zip
+
+      - name: Create auth.json
+        run: |
+          echo '{"http-basic": {"repo.magento.com": {"username": "${{ secrets.MAGENTO_PUBLIC_KEY }}", "password": "${{ secrets.MAGENTO_PRIVATE_KEY }}"}}}' > auth.json
+
+      - name: Install Magento Dependencies
+        run: composer install --no-dev --optimize-autoloader
