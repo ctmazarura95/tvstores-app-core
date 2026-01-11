@@ -16,10 +16,19 @@ jobs:
         with:
           php-version: '8.3'
           extensions: gd, bcmath, intl, soap, xsl, zip
+          tools: composer:v2
 
+      # THIS IS THE MISSING LINK:
       - name: Create auth.json
         run: |
-          echo '{"http-basic": {"repo.magento.com": {"username": "${{ secrets.MAGENTO_PUBLIC_KEY }}", "password": "${{ secrets.MAGENTO_PRIVATE_KEY }}"}}}' > auth.json
+          echo '{
+            "http-basic": {
+              "repo.magento.com": {
+                "username": "${{ secrets.MAGENTO_PUBLIC_KEY }}",
+                "password": "${{ secrets.MAGENTO_PRIVATE_KEY }}"
+              }
+            }
+          }' > auth.json
 
       - name: Install Magento Dependencies
         run: composer install --no-dev --optimize-autoloader
